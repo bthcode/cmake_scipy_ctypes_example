@@ -1,0 +1,9 @@
+package example_lcm;
+
+struct image_t
+{
+  int16_t  width;
+  int16_t  height;
+  int32_t  size;
+  float    data[size];
+}
