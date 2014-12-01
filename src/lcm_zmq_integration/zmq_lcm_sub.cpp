@@ -42,6 +42,8 @@ int main (int argc, char *argv[])
     //  starting with 'KEY'
     //--------------------------------------
     subscriber.setsockopt(ZMQ_SUBSCRIBE, filter, strlen (filter));
+    int rcv_timeout_millis(100);
+    subscriber.setsockopt(ZMQ_RCVTIMEO, &rcv_timeout_millis, sizeof(rcv_timeout_millis));
 
     std::cout << "Beginning Loop..." << std::endl;
 
@@ -51,7 +53,11 @@ int main (int argc, char *argv[])
         // Receive a message
         //-------------------------------
         zmq::message_t message;
-        subscriber.recv(&message);
+        if( !subscriber.recv(&message) )
+	  {
+	    std::cout << " . " << std::flush;
+	    continue;
+	  }
 
         // LCM object to decode into
         example_lcm::image_t I;
