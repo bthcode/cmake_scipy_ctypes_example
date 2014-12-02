@@ -31,6 +31,17 @@ List of examples:
   
   Shows how to enable a python shell from within any wxPython application
 
+Building:
+--------
 
+mkdir build
+cmake ../src
+make
+make install
 
+Running:
+-------
 
+1. Ctypes example
+
+python install/python/py_ctypes_caller.py
