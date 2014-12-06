@@ -14,6 +14,7 @@ from matplotlib.backends.backend_wx import NavigationToolbar2Wx
 from matplotlib.figure import Figure
 import matplotlib.gridspec as gridspec
 from matplotlib.widgets import RectangleSelector
+import matplotlib.cm as cm
 
 import wx
 import wx.lib.newevent
@@ -21,6 +22,7 @@ import wx.lib.newevent
 import wavfile
 import numpy as np
 
+import scipy.signal as ss
 
 SelectAudioEvent, EVT_SELECT_AUDIO = wx.lib.newevent.NewCommandEvent()
 
@@ -69,18 +71,29 @@ class AudioGui( wx.Frame ):
         self.win_size = 1024
         self.advance  = 512
         self.overlap  = self.win_size - self.advance
-        self.display_type = 'spectra'
+        self.display_type = 'samples'
+        self.cmapnames = cm._cmapnames
+        self.cmapidx   = 0
         self.init_gui()
         self.load_audio()
     # end __init__
 
     def get_specgram( self, samples, win_size, advance ):
+        '''
+        Gets spectrum for samples, returns as a matrix
+
+        [in] samples  - audio samples
+        [in] win_size - analysis window size in samples
+        [in] advance  - number of samples to advance between frames
+        [ret] matrix - nframes x fft_len
+
+        Notes: uses a hanning window ( the scipy.signal version so it's periodic )
+        ''' 
         num_frames    = samples.shape[0] / advance
         fft_full_len  = self.win_size
         fft_half_len  = ( fft_full_len / 2.0 ) + 1
-        hh            = np.hanning( win_size ) # TODO
+        hh            = ss.hanning( win_size, False )
         spec_buf   = np.zeros( (num_frames, fft_half_len), dtype=np.complex )
-        print spec_buf.shape
         for frame_id in range( num_frames ):
             frame_start   = frame_id * advance
             frame_end     = frame_start + win_size
@@ -97,6 +110,7 @@ class AudioGui( wx.Frame ):
         self.ax.plot( self.samples )
         self.canvas.draw()
     # end load_audio
+
 
     def init_gui( self ):
         ''' layout:
@@ -138,9 +152,14 @@ class AudioGui( wx.Frame ):
 
         # Sample button1
         self.BUTTON1_EVT = wx.NewId()
-        button1   = wx.Button( control_panel, label = 'Button1' )
+        button1   = wx.Button( control_panel, label = 'Time/Spectra' )
         button1.Bind( wx.EVT_BUTTON, self._on_button1 )
         control_buttons_sizer.Add( button1 )
+
+        self.BUTTON2_EVT = wx.NewId()
+        button2   = wx.Button( control_panel, label = 'Color' )
+        button2.Bind( wx.EVT_BUTTON, self._on_button2 )
+        control_buttons_sizer.Add( button2 )
 
         control_panel.SetSizerAndFit( control_buttons_sizer )
 
@@ -193,13 +212,24 @@ class AudioGui( wx.Frame ):
         print "caught button1"
         self.ax.cla()
         if self.display_type == 'samples':
-            self.ax.imshow( np.flipud(np.abs(self.specgram).T), aspect='auto' )
+            self.ax.imshow( 20*np.log10(np.flipud(np.abs(self.specgram).T)), aspect='auto', cmap=self.cmapnames[ self.cmapidx ] )
             self.display_type = 'spectra'
         elif self.display_type == 'spectra':
             self.ax.plot( self.samples )
             self.display_type = 'samples'
         self.canvas.draw()        
     # end _on_button1
+
+    def _on_button2( self, evt ):
+        self.cmapidx += 1
+        if self.cmapidx == len( self.cmapnames ): 
+            self.cmapidx = 0
+        if self.display_type == 'spectra':
+            self.ax.cla()
+            self.ax.imshow( 20*np.log10(np.flipud(np.abs(self.specgram).T)), aspect='auto', cmap=self.cmapnames[ self.cmapidx ] )
+            self.canvas.draw()        
+    # end change_colors
+
 
     def on_update_status_bar(self, event):
         if event.inaxes:
