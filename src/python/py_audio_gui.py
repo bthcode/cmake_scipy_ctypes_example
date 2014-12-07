@@ -254,7 +254,7 @@ class AudioGui( wx.Frame ):
         if self.display_type == 'samples':
             return
         self.ax.cla()
-        self.ax.imshow( 20*np.log10(np.flipud(np.abs(self.specgram).T)), aspect='auto', cmap=self.combobox2.GetValue() )
+        self.ax.imshow( 20*np.log10(np.abs(self.specgram).T) , origin='lower', aspect='auto', cmap=self.combobox2.GetValue() )
         self.canvas.draw()        
 
     # end _on_fft_param_change
@@ -268,7 +268,7 @@ class AudioGui( wx.Frame ):
         print "caught button1"
         self.ax.cla()
         if self.display_type == 'samples':
-            self.ax.imshow( 20*np.log10(np.flipud(np.abs(self.specgram).T)), aspect='auto', cmap=self.cmapnames[ self.cmapidx ] )
+            self.ax.imshow( 20*np.log10(np.abs(self.specgram).T), origin='lower', aspect='auto', cmap=self.cmapnames[ self.cmapidx ] )
             self.display_type = 'spectra'
         elif self.display_type == 'spectra':
             self.ax.plot( self.samples )
@@ -295,11 +295,11 @@ class AudioGui( wx.Frame ):
         #  3. store handle to them in self.maxima_lines
         self.maxima = []
         for frame_idx, row in enumerate( self.specgram ):
-            max_idxs = ss.argrelextrema( row, np.greater ) 
+            max_idxs = ss.argrelextrema( np.abs(row), np.greater ) 
             for fbin in max_idxs[0]:
                 self.maxima.append( [frame_idx, fbin] ) 
         self.maxima = np.array( self.maxima )
-        self.maxima_lines, = self.ax.plot( self.maxima[:,0], self.maxima[:,1], 'k.' )
+        self.maxima_lines, = self.ax.plot( self.maxima[:,0], self.maxima[:,1], 'b.', alpha=0.35 )
         self.canvas.draw()        
     # end _on_button1
 
@@ -311,7 +311,7 @@ class AudioGui( wx.Frame ):
         zoomy = self.ax.get_ylim()
         if self.display_type == 'spectra':
             self.ax.cla()
-            self.ax.imshow( 20*np.log10(np.flipud(np.abs(self.specgram).T)), aspect='auto', cmap=self.combobox2.GetValue() )
+            self.ax.imshow( 20*np.log10(np.abs(self.specgram).T), origin='lower', aspect='auto', cmap=self.combobox2.GetValue() )
             # restore zoom level
             self.ax.set_xlim( zoomx )
             self.ax.set_ylim( zoomy )
