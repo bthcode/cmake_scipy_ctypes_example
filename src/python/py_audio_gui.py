@@ -78,19 +78,20 @@ class AudioGui( wx.Frame ):
         self.load_audio()
     # end __init__
 
-    def get_specgram( self, samples, win_size, advance ):
+    def get_specgram( self, samples, win_size, advance, oversample ):
         '''
         Gets spectrum for samples, returns as a matrix
 
-        [in] samples  - audio samples
-        [in] win_size - analysis window size in samples
-        [in] advance  - number of samples to advance between frames
-        [ret] matrix - nframes x fft_len
+        [in] samples    - audio samples
+        [in] win_size   - analysis window size in samples
+        [in] advance    - number of samples to advance between frames
+        [in] oversample - how much to oversample by
+        [ret] matrix    - nframes x fft_len
 
         Notes: uses a hanning window ( the scipy.signal version so it's periodic )
         ''' 
         num_frames    = samples.shape[0] / advance
-        fft_full_len  = self.win_size
+        fft_full_len  = win_size * oversample
         fft_half_len  = ( fft_full_len / 2.0 ) + 1
         hh            = ss.hanning( win_size, False )
         spec_buf   = np.zeros( (num_frames, fft_half_len), dtype=np.complex )
@@ -99,14 +100,21 @@ class AudioGui( wx.Frame ):
             frame_end     = frame_start + win_size
             if frame_end > samples.shape[0]:
                 break
-            spectrum      = np.fft.fft( hh * samples[frame_start:frame_end,0] )
+            spectrum      = np.fft.fft( hh * samples[frame_start:frame_end,0], n=fft_full_len )
             spec_buf[ frame_id, : ] = spectrum[ :fft_half_len ]
         return spec_buf
     # end get_specgram
 
     def load_audio(self):
         self.sample_rate, self.samples = wavfile.read( self.wav_file )
-        self.specgram = self.get_specgram( self.samples, self.win_size, self.advance )
+
+        self.win_size    = int( self.win_combobox.GetValue() )
+        self.overlap_pct = float( self.overlap_combobox.GetValue() )
+        self.oversample  = int (self.oversample_combobox.GetValue() )
+        self.overlap_samples = int( self.win_size * self.overlap_pct ) 
+        self.advance         = self.win_size - self.overlap_samples
+
+        self.specgram = self.get_specgram( self.samples, self.win_size, self.advance, self.oversample )
         self.ax.plot( self.samples )
         self.canvas.draw()
     # end load_audio
@@ -151,15 +159,33 @@ class AudioGui( wx.Frame ):
         control_buttons_sizer = wx.GridSizer( cols = 1 )
 
         # Sample button1
-        self.BUTTON1_EVT = wx.NewId()
         button1   = wx.Button( control_panel, label = 'Time/Spectra' )
         button1.Bind( wx.EVT_BUTTON, self._on_button1 )
         control_buttons_sizer.Add( button1 )
 
-        self.BUTTON2_EVT = wx.NewId()
-        button2   = wx.Button( control_panel, label = 'Color' )
-        button2.Bind( wx.EVT_BUTTON, self._on_button2 )
-        control_buttons_sizer.Add( button2 )
+        # Color map
+        self.combobox2   = wx.ComboBox( control_panel, name='Colormap', choices=self.cmapnames, value='Spectral'  )
+        self.combobox2.Bind( wx.EVT_COMBOBOX, self._on_cmap_change )
+        control_buttons_sizer.Add( self.combobox2 )
+
+        # win size
+        self.win_sizes = [ '256', '512', '1024', '2048', '4096', '8192' ]
+        self.win_combobox= wx.ComboBox( control_panel, name='win_size', choices=self.win_sizes, value='1024'  )
+        self.win_combobox.Bind( wx.EVT_COMBOBOX, self._on_fft_param_change )
+        control_buttons_sizer.Add( self.win_combobox)
+
+
+        # fft size
+        self.oversamples = [ '1', '2', '4', '8', '16' ]
+        self.oversample_combobox= wx.ComboBox( control_panel, name='win_size', choices=self.oversamples, value='2'  )
+        self.oversample_combobox.Bind( wx.EVT_COMBOBOX, self._on_fft_param_change )
+        control_buttons_sizer.Add( self.oversample_combobox)
+    
+        # window overlap
+        self.overlaps = [ '0.25', '0.5', '0.75', '0.95' ]
+        self.overlap_combobox= wx.ComboBox( control_panel, name='win_size', choices=self.overlaps, value='0.75'  )
+        self.overlap_combobox.Bind( wx.EVT_COMBOBOX, self._on_fft_param_change )
+        control_buttons_sizer.Add( self.overlap_combobox)
 
         control_panel.SetSizerAndFit( control_buttons_sizer )
 
@@ -203,6 +229,25 @@ class AudioGui( wx.Frame ):
         self.Show()
     # end init_gui
 
+    def _on_fft_param_change( self, evt ):
+        print self.win_combobox.GetValue()
+        print self.overlap_combobox.GetValue()
+        print self.oversample_combobox.GetValue()
+        self.win_size    = int( self.win_combobox.GetValue() )
+        self.overlap_pct = float( self.overlap_combobox.GetValue() )
+        self.oversample  = int (self.oversample_combobox.GetValue() )
+        self.overlap_samples = int( self.win_size * self.overlap_pct ) 
+        self.advance         = self.win_size - self.overlap_samples
+
+        self.specgram = self.get_specgram( self.samples, self.win_size, self.advance, self.oversample )
+        if self.display_type == 'samples':
+            return
+        self.ax.cla()
+        self.ax.imshow( 20*np.log10(np.flipud(np.abs(self.specgram).T)), aspect='auto', cmap=self.combobox2.GetValue() )
+        self.canvas.draw()        
+
+    # end _on_fft_param_change
+
     def on_close( self, evt ):
         print "on quit"
         self.Close()
@@ -220,13 +265,16 @@ class AudioGui( wx.Frame ):
         self.canvas.draw()        
     # end _on_button1
 
-    def _on_button2( self, evt ):
-        self.cmapidx += 1
-        if self.cmapidx == len( self.cmapnames ): 
-            self.cmapidx = 0
+    def _on_cmap_change( self, evt ):
+        # get zoom level so we can restore it
+        zoomx = self.ax.get_xlim()
+        zoomy = self.ax.get_ylim()
         if self.display_type == 'spectra':
             self.ax.cla()
-            self.ax.imshow( 20*np.log10(np.flipud(np.abs(self.specgram).T)), aspect='auto', cmap=self.cmapnames[ self.cmapidx ] )
+            self.ax.imshow( 20*np.log10(np.flipud(np.abs(self.specgram).T)), aspect='auto', cmap=self.combobox2.GetValue() )
+            # restore zoom level
+            self.ax.set_xlim( zoomx )
+            self.ax.set_ylim( zoomy )
             self.canvas.draw()        
     # end change_colors
 
