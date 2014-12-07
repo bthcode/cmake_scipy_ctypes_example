@@ -190,6 +190,13 @@ class AudioGui( wx.Frame ):
         self.overlap_combobox.Bind( wx.EVT_COMBOBOX, self._on_fft_param_change )
         control_buttons_sizer.Add( self.overlap_combobox)
 
+        # Maxima on/off
+        maxima_button   = wx.Button( control_panel, label = 'Show Maxima' )
+        maxima_button.Bind( wx.EVT_BUTTON, self._on_maxima_button )
+        control_buttons_sizer.Add( maxima_button )
+        self.maxima_lines = None
+
+
         control_panel.SetSizerAndFit( control_buttons_sizer )
 
         # 3. Set up custom tool bar
@@ -268,6 +275,35 @@ class AudioGui( wx.Frame ):
             self.display_type = 'samples'
         self.canvas.draw()        
     # end _on_button1
+
+    def _on_maxima_button( self, evt ):
+        print "caught maxima button"
+
+        # if not in spectra moode, bail
+        if self.display_type != 'spectra':
+            return
+        # turn off maxima lines if they exist, then bail
+        if self.maxima_lines != None:
+            print self.maxima_lines
+            self.ax.lines.remove( self.maxima_lines )
+            self.canvas.draw()
+            self.maxima_lines = None
+            return
+        # maxima lines must be off and in spectra mode, so:
+        #  1. calculate maxima
+        #  2. plot them
+        #  3. store handle to them in self.maxima_lines
+        self.maxima = []
+        for frame_idx, row in enumerate( self.specgram ):
+            max_idxs = ss.argrelextrema( row, np.greater ) 
+            for fbin in max_idxs[0]:
+                self.maxima.append( [frame_idx, fbin] ) 
+        self.maxima = np.array( self.maxima )
+        self.maxima_lines, = self.ax.plot( self.maxima[:,0], self.maxima[:,1], 'k.' )
+        self.canvas.draw()        
+    # end _on_button1
+
+
 
     def _on_cmap_change( self, evt ):
         # get zoom level so we can restore it
