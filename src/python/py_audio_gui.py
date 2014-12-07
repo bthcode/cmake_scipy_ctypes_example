@@ -77,14 +77,6 @@ class AudioGui( wx.Frame ):
         self.overlap  = self.win_size - self.advance
         self.display_type = 'samples'
         
-        # Create a dictionary to hold all our params
-        # NOTE: Do NOT populate with DERIVED params, 
-        # because all these params will be editable by the user
-        self.params = OrderedDict()
-        self.params['wav_file'] = self.wav_file
-        self.params['win_size'] = self.win_size
-        self.params['advance' ] = self.advance
-        
         self.cmapnames = cm._cmapnames
         self.cmapidx   = 0
         self.init_gui()
@@ -218,10 +210,6 @@ class AudioGui( wx.Frame ):
         filemenu.Append( self.ON_MENU_OPEN, "&Open", "" )
         self.Bind(wx.EVT_MENU, self._on_open, id=self.ON_MENU_OPEN )
 
-        self.ON_MENU_EDIT_PARAMS = wx.NewId()
-        filemenu.Append( self.ON_MENU_EDIT_PARAMS, "&Edit Params", "" )
-        self.Bind( wx.EVT_MENU, self._on_edit_params, id=self.ON_MENU_EDIT_PARAMS )
-
         self.ON_MENU_QUIT   = wx.NewId()
         filemenu.Append( self.ON_MENU_QUIT, "&Quit", "" )
         self.Bind( wx.EVT_MENU, self.on_close, id=self.ON_MENU_QUIT )
@@ -306,16 +294,6 @@ class AudioGui( wx.Frame ):
         print "_on_open"
     # end _on_open
 
-    def _on_edit_params( self, event ):
-        print '_on_edit_params'
-        dialog = custom_dialogs.ParamDialog( self )
-        dialog.InitUI( self.params )
-        rval = dialog.ShowModal( )
-        self.params = dialog.get_params( )
-        print 'New params are:'
-        for key, val in self.params.items():
-            print '{0} : {1}'.format( key, val )
-    # end _on_edit_params
 # end class AudioGui
 
 if __name__=="__main__":
