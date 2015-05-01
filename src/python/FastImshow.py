@@ -7,10 +7,10 @@ Example::
 
     sz = (10000,20000) # rows, cols
     buf = np.arange(sz[0]*sz[1]).reshape(sz)
-    extent = (100,150,1000,2000)
+    extent = (100,150,1000,2000)  # arbitrary extent
     fig = plt.figure()
     ax  = fig.add_subplot(111)
-    im = FastImshow(buf,extent,ax)
+    im = FastImshow(buf,ax,extent=extent,tgt_res=1024)
     im.show()
 
     plt.show()
@@ -28,13 +28,14 @@ class FastImshow:
 
         sz = (10000,20000) # rows, cols
         buf = np.arange(sz[0]*sz[1]).reshape(sz)
-        extent = (100,150,1000,2000)
+        extent = (100,150,1000,2000)  # arbitrary extent
         fig = plt.figure()
         ax  = fig.add_subplot(111)
-        im = FastImshow(buf,extent,ax)
+        im = FastImshow(buf,ax,extent=extent,tgt_res=1024)
         im.show()
 
         plt.show()
+
     '''
     def __init__(self,buf,ax,extent=None,tgt_res=512):
         '''
