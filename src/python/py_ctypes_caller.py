@@ -41,6 +41,8 @@ class py_ctypes_caller:
                                        C.c_int ]
         self.lib.add_vecs.restype  = C.c_int
 
+        self.lib.DeleteInstanceOfSample.argtypes = [C.c_ulong]
+
 
         print "############# CREATING INSTANCE ###################"
         self.instance  = self.lib.CreateInstanceOfSample()
@@ -50,7 +52,7 @@ class py_ctypes_caller:
         ''' Shows clean deletion of an C++ object via ctypes '''
         print "############# DELETING INSTANCE ###################"
         self.lib.DeleteInstanceOfSample( self.instance )
-        pass
+        print "Done"
     # end cleanup_library
 
     def add(self, x,y ):
