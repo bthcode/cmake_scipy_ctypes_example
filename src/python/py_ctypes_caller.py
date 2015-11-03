@@ -24,7 +24,9 @@ class py_ctypes_caller:
          
         searchpath = os.path.dirname( __file__ )
         print searchpath
-        self.lib = np.ctypeslib.load_library("libsample_interface.so", searchpath )
+        self.lib = np.ctypeslib.load_library("libsample_interface.dylib", searchpath )
+
+        self.lib.CreateInstanceOfSample.restype = C.c_ulong
 
         self.lib.SetVec1.argtypes = [  C.POINTER( None ), 
                                        C.POINTER(  C.c_double ),
