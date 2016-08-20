@@ -78,7 +78,9 @@ class AudioGui( wx.Frame ):
         self.display_type = 'samples'
         
         #self.cmapnames = cm._cmapnames
-        self.cmapnames = ['jet']
+        self.cmapnames = ['jet', 'afmhot', 'autumn', 'bone', 'cool',
+                             'copper', 'gist_heat', 'gray', 'hot',
+                             'pink', 'spring', 'summer', 'winter']
         self.cmapidx   = 0
         self.init_gui()
         self.load_audio()
