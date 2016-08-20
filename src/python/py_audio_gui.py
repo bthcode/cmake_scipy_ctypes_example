@@ -19,7 +19,7 @@ import matplotlib.cm as cm
 import wx
 import wx.lib.newevent
 
-import wavfile
+from scipy.io import wavfile
 import numpy as np
 from collections import OrderedDict
 
@@ -77,7 +77,8 @@ class AudioGui( wx.Frame ):
         self.overlap  = self.win_size - self.advance
         self.display_type = 'samples'
         
-        self.cmapnames = cm._cmapnames
+        #self.cmapnames = cm._cmapnames
+        self.cmapnames = ['jet']
         self.cmapidx   = 0
         self.init_gui()
         self.load_audio()
