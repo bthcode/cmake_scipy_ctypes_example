@@ -38,13 +38,14 @@ def simple_scatter( ax, x_vals, y_vals, color_vals, size_vals, num_colors=8, num
 
 
 if __name__=="__main__":
-    x_vals = np.arange(10000)
-    y_vals = np.random.random(10000)
-    color_inputs = np.random.random(10000)
-    size_inputs = np.random.random(10000) 
+    n_points = 20000
+    x_vals = np.arange(n_points)
+    y_vals = np.random.random(n_points)
+    color_inputs = np.random.random(n_points)
+    size_inputs = np.random.random(n_points) 
 
     fig = plt.figure()
     ax = fig.add_subplot(111)
-    simple_scatter( ax, x_vals, y_vals, color_inputs, size_inputs, 8, 16 )
+    simple_scatter( ax, x_vals, y_vals, y_vals, x_vals, num_colors=20, num_sizes=20, size_max=20, size_min=1)
     plt.show()
 
