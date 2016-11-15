@@ -3,29 +3,47 @@
 import numpy as np
 np.set_printoptions(precision=3, suppress=True)
 
-# compute sigmoid nonlinearity
+def reverse_enumerate(L):                                                            
+    ''' reverse enumerate '''
+    for index in reversed(xrange(len(L))):                                       
+        yield index, L[index]   
+# end reverse_enumerate
+
 def sigmoid(x):
+    '''compute sigmoid nonlinearity'''
     output = (2./(1+np.exp(-x))) - 0.5
     return output
+# end sigmoid
 
-# convert output of sigmoid function to its derivative
 def dsigmoid(x):
+    '''convert output of sigmoid function to its derivative'''
     return 2*np.exp(-x)/(1+np.exp(-x))**2
+# end dsigmoid
 
 np.random.seed(1)
 
-# Each nn has an ih and an ho
-eta       = 0.25
-alpha     = 0.1
-ni        = 1 # take one char as input to an individual nn
-no        = 1 # each layer has one char as output
-nh        = 16
+# INPUT PREP
+data       = open('input.txt', 'r').read() # should be simple plain text file
+data       = list(data)
+chars      = list(set(data))
+data_size  = len(data)
+vocab_size = len(chars)
+char_to_ix = { ch:i for i,ch in enumerate(chars) } # assigns each char a number - could be done with ord
+ix_to_char = { i:ch for i,ch in enumerate(chars) } # reverse lookup
 
+# INITIAL WEIGHTS
 num_chars = 8 # take 8 chars at a time
 w_ihs     = []
 w_hos     = []
 w_hhs     = []
 hs        = [0] * num_chars
+
+# Each nn has an ih and an ho
+eta       = 0.25
+alpha     = 0.1
+ni        = vocab_size # take one char as input to an individual nn
+no        = vocab_size # each layer has one char as output
+nh        = 16
 
 # SETUP
 for i in range(num_chars):
@@ -34,15 +52,7 @@ for i in range(num_chars):
     w_hhs.append(np.random.random((nh,nh)))
 # end
 
-# INPUT PREP
-data       = open('input.txt', 'r').read() # should be simple plain text file
-data       = list(data)
-chars      = list(set(data))
-data_size, vocab_size = len(data), len(chars)
 print 'data has %d characters, %d unique.' % (data_size, vocab_size)
-char_to_ix = { ch:i for i,ch in enumerate(chars) } # assigns each char a number - could be done with ord
-ix_to_char = { i:ch for i,ch in enumerate(chars) } # reverse lookup
-
 
 #################################################################################
 # in -> w_ih -> h_in -> sigmoid -> h_out -> w_ho -> out_in -> sigmoid -> out_out
@@ -58,6 +68,14 @@ sse      = 10
 epoch    = 0
 char_idx = 0
 set_size = num_chars+1
+
+# Place to put our inputs and outputs
+invecs = np.zeros((vocab_size,num_chars))
+outvecs = np.zeros((vocab_size,num_chars))
+out_in  = np.zeros((vocab_size,num_chars))
+out_out = np.zeros((vocab_size,num_chars))
+err_os  = np.zeros((vocab_size,num_chars))
+err_ops = np.zeros((vocab_size,num_chars))
 
 while sse > 0.00001:
     epoch += 1
@@ -75,33 +93,42 @@ while sse > 0.00001:
     if char_idx >= len(data):
         char_idx = 0
 
-
     # ------- Forward Pass ------- #
-    ins  = [ char_to_ix[x] for x in ins ]
-    ins  = ins[:-1]
-    outs = ins[1:]
+    cs = [ char_to_ix[x] for x in ins ]
+    for idx, c in enumerate(cs[:-1]):
+        invecs[c,idx] = 1
+    for idx, c in enumerate(cs[1:]):
+        outvecs[c,idx] = 1
 
     for i in range(num_chars):
-        x = np.array( [[ins[i]]] )
+        x = invecs[:,i]         # 1 x vocab
+        y = outvecs[:,i]        # 1 x vocab
         if i > 0:
             h_in = np.dot(x,w_ihs[i]) + np.dot(hs[i-1], w_hhs[i-1])
         else:
             h_in = np.dot(x,w_ihs[i])
-        h_in = np.dot(x, w_ihs[i])
-        h_out = sigmoid(h_in)
-        hs[i] = h_out
+        h_in = np.dot(x, w_ihs[i])    # nh
+        h_out = sigmoid(h_in)         # nh
+        hs[i] = h_out                 # nh
 
-        out_in = np.dot(h_out, w_hos[i])
-        out_out = sigmoid(out_in)
-    
+        out_in[:,i] = np.dot(h_out, w_hos[i]) # no x nchars
+        out_out[:,i] = sigmoid(out_in[:,1])                 # no x nchars
+
+    # --------- Error ------------ #
+        err_os[:,i]  = outvecs[:,i] - out_out[:,i]              # no x nchars
+        err_ops[:,i] = dsigmoid(err_os[:,i]) * err_os[:,i]      # no x nchars (.*)
+
+    for idx, h in reverse_enumerate(hs):
+        err_ho[:,i] = np.dot(err_ops[:,i], w_al;ksdjf;laksdjf
+        
 '''
-    for idx, x in enumerate(ins):
         x        = x.reshape((1,len(x))) # covert from array to matrix
         # -- forward propagation --
         h_in     = np.dot(x, w_ih)
         h_out    = sigmoid(h_in)
         out_in   = np.dot(h_out, w_ho)
         out_out  = sigmoid(out_in) 
+
 
         # -- error calculation --
         err_o    = expected[idx] - out_out
