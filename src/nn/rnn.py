@@ -1,13 +1,8 @@
 #!/usr/bin/env python
 
 import numpy as np
+import string
 np.set_printoptions(precision=3, suppress=True)
-
-def reverse_enumerate(L):                                                            
-    ''' reverse enumerate '''
-    for index in reversed(xrange(len(L))):                                       
-        yield index, L[index]   
-# end reverse_enumerate
 
 def sigmoid(x):
     '''compute sigmoid nonlinearity'''
@@ -19,6 +14,7 @@ def dsigmoid(x):
     '''convert output of sigmoid function to its derivative'''
     return 2*np.exp(-x)/(1+np.exp(-x))**2
 # end dsigmoid
+
 
 np.random.seed(1)
 
@@ -32,14 +28,13 @@ char_to_ix = { ch:i for i,ch in enumerate(chars) } # assigns each char a number 
 ix_to_char = { i:ch for i,ch in enumerate(chars) } # reverse lookup
 
 # INITIAL WEIGHTS
-num_chars = 8 # take 8 chars at a time
+num_chars = 24 # take 8 chars at a time
 w_ihs     = []
 w_hos     = []
 w_hhs     = []
-hs        = [0] * num_chars
 
 # Each nn has an ih and an ho
-eta       = 0.25
+eta       = 0.1
 alpha     = 0.1
 ni        = vocab_size # take one char as input to an individual nn
 no        = vocab_size # each layer has one char as output
@@ -55,11 +50,15 @@ for i in range(num_chars):
 print 'data has %d characters, %d unique.' % (data_size, vocab_size)
 
 #################################################################################
-# in -> w_ih -> h_in -> sigmoid -> h_out -> w_ho -> out_in -> sigmoid -> out_out
+# in -> w_ih -> h_pre -> sigmoid -> h_post -> w_ho -> out_pre -> sigmoid -> out_post
 #                                    |
-# in -> w_ih -> h_in -> sigmoid -> h_out -> w_ho -> out_in -> sigmoid -> out_out
+#                                  w_hh
 #                                    |
-# in -> w_ih -> h_in -> sigmoid -> h_out -> w_ho -> out_in -> sigmoid -> out_out
+# in -> w_ih -> h_pre -> sigmoid -> h_post -> w_ho -> out_pre -> sigmoid -> out_post
+#                                    |
+#                                   w_hh
+#                                    |
+# in -> w_ih -> h_pre -> sigmoid -> h_post -> w_ho -> out_pre -> sigmoid -> out_post
 #
 #################################################################################
 
@@ -70,12 +69,43 @@ char_idx = 0
 set_size = num_chars+1
 
 # Place to put our inputs and outputs
-invecs = np.zeros((vocab_size,num_chars))
-outvecs = np.zeros((vocab_size,num_chars))
-out_in  = np.zeros((vocab_size,num_chars))
-out_out = np.zeros((vocab_size,num_chars))
-err_os  = np.zeros((vocab_size,num_chars))
-err_ops = np.zeros((vocab_size,num_chars))
+invecs     = [ np.zeros((1,vocab_size)) for i in range(num_chars) ]
+outvecs    = [ np.zeros((1,vocab_size)) for i in range(num_chars) ]
+h_pre      = [ np.zeros((1,nh)) for i in range(num_chars) ]
+h_post     = [ np.zeros((1,nh)) for i in range(num_chars) ]
+out_pre    = [ np.zeros((1,vocab_size)) for i in range(num_chars) ]
+out_post   = [ np.zeros((1,vocab_size)) for i in range(num_chars) ]
+err_o_post = [ np.zeros((1,vocab_size)) for i in range(num_chars) ]
+err_o_pre  = [ np.zeros((1,vocab_size)) for i in range(num_chars) ]
+err_h_post = [ np.zeros((1,nh)) for i in range(num_chars) ]
+err_h_pre  = [ np.zeros((1,nh)) for i in range(num_chars) ]
+
+#sample_ix = sample(h_post[0], cs[0], 500, w_ihs[0], w_hhs[0], w_hos[0], vocab_size)
+def sample(h, seed_ix, n, Wxh, Whh, Why, vocab_size):
+  """ 
+  sample a sequence of integers from the model 
+  h is memory state, seed_ix is seed letter for first time step
+  """
+  x = np.zeros((1,vocab_size))
+  x[0,seed_ix] = 1
+  ixes = []
+  for t in xrange(n):
+    #h_pre[i] = np.dot(x,w_ihs[i]) + np.dot(h_post[i-1], w_hhs[i-1])
+    #print x.shape
+    #print Wxh.shape
+    #print h.shape
+    #print Whh.shape
+    h = np.tanh(np.dot(x, Wxh) + np.dot(h,Whh))
+    #out_pre[i] = np.dot(h_post[i], w_hos[i]) # no x nchars
+    y = np.dot(h,Why)
+    p = np.exp(y) / np.sum(np.exp(y))
+    ix = np.random.choice(range(vocab_size), p=p.ravel())
+    x = np.zeros((1,vocab_size))
+    x[0,ix] = 1
+    ixes.append(ix)
+  return ixes
+# end sample
+
 
 while sse > 0.00001:
     epoch += 1
@@ -96,43 +126,70 @@ while sse > 0.00001:
     # ------- Forward Pass ------- #
     cs = [ char_to_ix[x] for x in ins ]
     for idx, c in enumerate(cs[:-1]):
-        invecs[c,idx] = 1
+        invecs[idx].fill(0)
+        invecs[idx][0,c] = 1
     for idx, c in enumerate(cs[1:]):
-        outvecs[c,idx] = 1
+        outvecs[idx].fill(0)
+        outvecs[idx][0,c] = 1
 
     for i in range(num_chars):
-        x = invecs[:,i]         # 1 x vocab
-        y = outvecs[:,i]        # 1 x vocab
+        x = invecs[i]         # 1 x vocab
+        y = outvecs[i]        # 1 x vocab
         if i > 0:
-            h_in = np.dot(x,w_ihs[i]) + np.dot(hs[i-1], w_hhs[i-1])
+            h_pre[i] = np.dot(x,w_ihs[0]) + np.dot(h_post[i-1], w_hhs[0])
         else:
-            h_in = np.dot(x,w_ihs[i])
-        h_in = np.dot(x, w_ihs[i])    # nh
-        h_out = sigmoid(h_in)         # nh
-        hs[i] = h_out                 # nh
+            h_pre[i] = np.dot(x,w_ihs[0])
+        h_post[i] = sigmoid(h_pre[i])         # nh
 
-        out_in[:,i] = np.dot(h_out, w_hos[i]) # no x nchars
-        out_out[:,i] = sigmoid(out_in[:,1])                 # no x nchars
+        out_pre[i] = np.dot(h_post[i], w_hos[0]) # no x nchars
+        out_post[i] = sigmoid(out_pre[i])                 # no x nchars
 
     # --------- Error ------------ #
-        err_os[:,i]  = outvecs[:,i] - out_out[:,i]              # no x nchars
-        err_ops[:,i] = dsigmoid(err_os[:,i]) * err_os[:,i]      # no x nchars (.*)
+    for i in range(num_chars):
+        err_o_post[i]  = outvecs[i] - out_post[i]              # no 
+        err_o_pre[i] = dsigmoid(out_pre[i]) * err_o_post[i]      # no (.*)
 
-    for idx, h in reverse_enumerate(hs):
-        err_ho[:,i] = np.dot(err_ops[:,i], w_al;ksdjf;laksdjf
+    for i in range(num_chars):
+        idx = num_chars - i - 1 # reverse iterator
+        if i == 0: # no net to the right
+            err_h_post[idx] = np.dot(err_o_pre[i], w_hos[0].T) # nh
+        else:      # net to the right
+            #layer_1_delta = (future_layer_1_delta.dot(synapse_h.T) + layer_2_delta.dot(synapse_1.T)) * sigmoid_output_to_derivative(layer_1)
+            err_h_post[idx] = np.dot(err_o_pre[i], w_hos[0].T) + np.dot(err_h_pre[idx+1], w_hhs[0]) # nh
+        err_h_pre[idx] = dsigmoid(err_h_post[idx]) * err_h_post[idx] #nh (.*)
+
         
+    # --------- Update ---------- #
+    for i in range(num_chars):
+        d_ho     = np.dot(h_post[i].T, err_o_pre[i])
+        w_hos[0] = w_hos[0] + eta * d_ho 
+        d_ih     = np.dot(invecs[i].T, err_h_pre[i])
+        w_ihs[0] = w_ihs[0] + eta * d_ih 
+
+    # --------- SSE -------------- #
+    sse = 0
+    for i in range(num_chars):
+        sse = sse + np.dot(err_o_post[i], err_o_post[i].T)[0,0]
+    sse = sse / float(num_chars)
+
+    if epoch % 1000 == 0:
+        #def sample(h, seed_ix, n, Wxh, Whh, Why, vocab_size):
+        print "________{0}_________".format(sse)
+        sample_ix = sample(h_post[0], cs[0], 500, w_ihs[0], w_hhs[0], w_hos[0], vocab_size)
+        sample_ix = [ ix_to_char[ix] for ix in sample_ix ]
+        print string.join(sample_ix, '')
 '''
         x        = x.reshape((1,len(x))) # covert from array to matrix
         # -- forward propagation --
         h_in     = np.dot(x, w_ih)
         h_out    = sigmoid(h_in)
-        out_in   = np.dot(h_out, w_ho)
-        out_out  = sigmoid(out_in) 
+        out_pre   = np.dot(h_out, w_ho)
+        out_post  = sigmoid(out_pre) 
 
 
         # -- error calculation --
-        err_o    = expected[idx] - out_out
-        err_op   = dsigmoid(out_in) * err_o
+        err_o    = expected[idx] - out_post
+        err_op   = dsigmoid(out_pre) * err_o
         err_h    = np.dot(err_op, w_ho.T)
         err_hp   = dsigmoid(h_in) * err_h
             
@@ -147,7 +204,7 @@ while sse > 0.00001:
 
         # -- sum of squares error
         sse = sse + np.dot(err_o, err_o.T)[0,0]
-        pred[idx,:] = out_out
+        pred[idx,:] = out_post
     if epoch % 100 == 0:
         print epoch, sse
 print "After {0} epochs:".format(epoch)
