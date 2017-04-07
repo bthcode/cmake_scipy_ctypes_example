@@ -72,8 +72,22 @@ class Test(QtGui.QMainWindow):
         self.vline = pg.InfiniteLine(angle=90, pen=(255,0,0,100))
         self.plot_item.addItem( self.hline )
         self.plot_item.addItem( self.vline )
+
+
+        def cback():
+            print('You pushed a button!')
+        button_for_brian = QtGui.QPushButton('A button')
+        button_for_brian.clicked.connect( cback )
+        layout = QtGui.QVBoxLayout()
+        hl     = QtGui.QHBoxLayout()
+        hl.addWidget( button_for_brian )
+        hl.addStretch()
+        layout.addWidget( w )
+        layout.addLayout( hl )
+        w2 = QtGui.QWidget()
+        w2.setLayout( layout )
         
-        self.setCentralWidget( w )
+        self.setCentralWidget( w2 )
         self.show()
 
 # end Test
